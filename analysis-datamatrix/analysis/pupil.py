@@ -52,12 +52,13 @@ def plot_pupiltrace(dm):
 	model = 'pupil ~ log_velocity + (1+log_velocity|subject_nr)'
 	lm = lme4.lmer_series(dm, formula=model, winlen=3, cacheid='lmer')
 	for y, color, alpha in [
-		(.94, grey[3], .05),
-		(.942, grey[4], .01),
-		(.944, grey[5], .005)
+		(.94, grey[2], .05),
+		(.942, grey[3], .01),
+		(.944, grey[4], .005),
+		(.946, grey[5], .001)
 		]:
 		a = series.threshold(lm.p, lambda p: p > 0 and p < alpha,
-			min_length=200)
+			min_length=30)
 		plot.threshold(a[1], y=y, color=color, linewidth=4)
 	# Mark the baseline period
 	plt.axvspan(50, 90, color='black', alpha=.2)
