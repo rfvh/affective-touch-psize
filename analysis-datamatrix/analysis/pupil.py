@@ -6,6 +6,28 @@ from datamatrix.rbridge import lme4
 from datamatrix.colors.tango import *
 import numpy as np
 
+def preprocess_exp2(dm):
+
+	"""
+	desc:
+		Do basic data preprocessing that is specific to experiment 2.
+
+	arguments:
+		dm:
+			type: DataMatrix
+
+	returns:
+		type:	DataMatrix
+	"""
+
+	# Snelheid and storking side were incorrectly coded. The order was fixed, so
+	# here we recode it manually.
+	dm.snelheid = 345 * [3, 30, 0.3, 30, 3, 0.3]
+	dm.side = 345 * ['V', 'D', 'D', 'V', 'D', 'V']
+	for row in dm:
+		row.subject_nr = int(str(row.subject_nr)[:-1])
+	return dm
+
 
 def preprocess(dm):
 
@@ -30,7 +52,7 @@ def preprocess(dm):
 	return dm
 
 
-def plot_pupiltrace(dm):
+def plot_pupiltrace(dm, suffix='', interaction=False):
 
 	"""
 	desc:
@@ -39,6 +61,11 @@ def plot_pupiltrace(dm):
 	arguments:
 		dm:
 			type: DataMatrix
+
+	keywords:
+		suffix:			A suffix for the plot.
+		interaction:	Indicates whether the log_velocity by side interaction
+						should be included.
 	"""
 
 	plot.new(size=(12, 6))
@@ -49,17 +76,23 @@ def plot_pupiltrace(dm):
 			color=color)
 	# Run statistical model, and annotate the figure with three alpha levels:
 	# .05, .01, and .005
-	model = 'pupil ~ log_velocity + (1+log_velocity|subject_nr)'
-	lm = lme4.lmer_series(dm, formula=model, winlen=3, cacheid='lmer')
-	for y, color, alpha in [
-		(.94, grey[2], .05),
-		(.942, grey[3], .01),
-		(.944, grey[4], .005),
-		(.946, grey[5], .001)
+	if interaction:
+		model = 'pupil ~ log_velocity*side + (1+log_velocity*side|subject_nr)'
+	else:
+		model = 'pupil ~ log_velocity + (1+log_velocity|subject_nr)'
+	lm = lme4.lmer_series(dm, formula=model, winlen=3,
+		cacheid='lmer%s' % suffix)
+	for y, color1, color2, alpha in [
+		(.94, grey[2], blue[0], .05),
+		(.942, grey[3], blue[1], .01),
+		(.944, grey[4], blue[2], .005),
+		(.946, grey[5], blue[2], .001)
 		]:
 		a = series.threshold(lm.p, lambda p: p > 0 and p < alpha,
-			min_length=30)
-		plot.threshold(a[1], y=y, color=color, linewidth=4)
+			min_length=1)
+		plot.threshold(a[1], y=y, color=color1, linewidth=4)
+		if interaction:
+			plot.threshold(a[3], y=y+.01, color=color2, linewidth=4)
 	# Mark the baseline period
 	plt.axvspan(50, 90, color='black', alpha=.2)
 	# Mark the cue onset
@@ -71,4 +104,4 @@ def plot_pupiltrace(dm):
 	plt.xlabel('Time since auditory cue (s)')
 	plt.ylabel('Pupil size (relative to baseline)')
 	plt.legend(frameon=False)
-	plot.save('pupiltrace')
+	plot.save('pupiltrace'+suffix)
